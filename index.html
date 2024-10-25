@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snake Game with AI Obstacles</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #2f3e4f; /* Color from the provided screenshot */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      background-color: #3d4e61; /* Color from the provided screenshot */
+    }
+    .centered-text {
+      position: absolute;
+      color: #d3d3d3; /* Light color from the screenshot */
+      text-align: center;
+      font-family: 'Arial', sans-serif;
+      width: 100%;
+    }
+    .game-title {
+      font-size: 48px;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+    .instructions {
+      font-size: 20px;
+    }
+    .instructions strong {
+      font-weight: bold;
+    }
+    .score {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      font-size: 20px;
+      color: #fff; /* White score text */
+      font-family: 'Arial', sans-serif;
+      background-color: #000; /* Black background for the score */
+      padding: 5px 10px;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div class="centered-text" id="startScreen">
+    <div class="game-title">Snake Game</div>
+    <div class="instructions">Press <strong>Spacebar</strong> to Start / Restart</div>
+    <div class="instructions">Use <strong>W, A, S, D</strong> to Control</div>
+  </div>
+  <div class="score" id="score">Score: 0</div>
+  
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const gridSize = 20;
+    let canvasSize;
+    let snake, food, direction, gameInterval, gameOver, score;
+
+    // Fullscreen the canvas
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      canvasSize = canvas.width < canvas.height ? canvas.width : canvas.height;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas(); // Initial resize to fullscreen
+
+    // Hide the start screen when game starts
+    const startScreen = document.getElementById('startScreen');
+    const scoreDisplay = document.getElementById('score');
+    
+    // Start the game when space is pressed
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        startScreen.style.display = 'none';
+        score = 0;
+        scoreDisplay.innerText = `Score: ${score}`;
+        startGame();
+      }
+    });
+
+    // Obstacle positions that form the letters "AI"
+    const obstacles = [
+      // A
+      { x: 8, y: 5 }, { x: 8, y: 6 }, { x: 8, y: 7 }, { x: 8, y: 8 }, { x: 8, y: 9 },
+      { x: 9, y: 5 }, { x: 10, y: 5 }, { x: 11, y: 6 }, { x: 11, y: 7 }, { x: 9, y: 7 },
+      { x: 11, y: 8 }, { x: 11, y: 9 }, { x: 9, y: 9 }, { x: 10, y: 9 }, 
+      // I
+      { x: 14, y: 5 }, { x: 14, y: 6 }, { x: 14, y: 7 }, { x: 14, y: 8 }, { x: 14, y: 9 },
+    ];
+
+    // Initial Game Setup
+    function startGame() {
+      clearInterval(gameInterval);
+      snake = [{ x: gridSize * 5, y: gridSize * 5 }];
+      food = createFood();
+      direction = getRandomDirection();
+      gameOver = false;
+      gameInterval = setInterval(updateGame, 100);
+    }
+
+    // Get a random starting direction
+    function getRandomDirection() {
+      const directions = ['up', 'down', 'left', 'right'];
+      return directions[Math.floor(Math.random() * directions.length)];
+    }
+
+    // Create food at a random location
+    function createFood() {
+      return {
+        x: Math.floor(Math.random() * (canvas.width / gridSize)) * gridSize,
+        y: Math.floor(Math.random() * (canvas.height / gridSize)) * gridSize,
+      };
+    }
+
+    // Update the game state
+    function updateGame() {
+      if (gameOver) return;
+
+      moveSnake();
+      checkCollision();
+      checkEatFood();
+
+      clearCanvas();
+      drawSnake();
+      drawFood();
+      drawObstacles(); // Draw the AI obstacles
+    }
+
+    // Clear the canvas
+    function clearCanvas() {
+      ctx.fillStyle = '#3d4e61'; // Background color matching the screenshot
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Draw the snake
+    function drawSnake() {
+      ctx.fillStyle = '#0f0';
+      snake.forEach((segment) => {
+        ctx.fillRect(segment.x, segment.y, gridSize, gridSize);
+      });
+    }
+
+    // Draw the food
+    function drawFood() {
+      ctx.fillStyle = '#f00';
+      ctx.fillRect(food.x, food.y, gridSize, gridSize);
+    }
+
+    // Draw the AI obstacles
+    function drawObstacles() {
+      ctx.fillStyle = '#ffcc00'; // Yellow color for obstacles
+      obstacles.forEach(obstacle => {
+        ctx.fillRect(obstacle.x * gridSize, obstacle.y * gridSize, gridSize, gridSize);
+      });
+    }
+
+    // Move the snake
+    function moveSnake() {
+      const head = { ...snake[0] };
+
+      switch (direction) {
+        case 'up':
+          head.y -= gridSize;
+          break;
+        case 'down':
+          head.y += gridSize;
+          break;
+        case 'left':
+          head.x -= gridSize;
+          break;
+        case 'right':
+          head.x += gridSize;
+          break;
+      }
+
+      snake.unshift(head);
+      snake.pop();
+    }
+
+    // Change direction based on WASD input
+    document.addEventListener('keydown', (e) => {
+      switch (e.code) {
+        case 'KeyW':
+          if (direction !== 'down') direction = 'up';
+          break;
+        case 'KeyS':
+          if (direction !== 'up') direction = 'down';
+          break;
+        case 'KeyA':
+          if (direction !== 'right') direction = 'left';
+          break;
+        case 'KeyD':
+          if (direction !== 'left') direction = 'right';
+          break;
+      }
+    });
+
+    // Check for collisions with walls, self, or obstacles
+    function checkCollision() {
+      const head = snake[0];
+
+      // Check wall collision
+      if (
+        head.x < 0 ||
+        head.x >= canvas.width ||
+        head.y < 0 ||
+        head.y >= canvas.height
+      ) {
+        endGame();
+      }
+
+      // Check self collision
+      for (let i = 1; i < snake.length; i++) {
+        if (head.x === snake[i].x && head.y === snake[i].y) {
+          endGame();
+        }
+      }
+
+      // Check obstacle collision
+      obstacles.forEach(obstacle => {
+        if (head.x === obstacle.x * gridSize && head.y === obstacle.y * gridSize) {
+          endGame();
+        }
+      });
+    }
+
+    // Check if snake eats the food
+    function checkEatFood() {
+      const head = snake[0];
+
+      if (head.x === food.x && head.y === food.y) {
+        snake.push({ ...snake[snake.length - 1] }); // Grow the snake
+        food = createFood(); // Generate new food
+        score += 1; // Increment score by 1
+        scoreDisplay.innerText = `Score: ${score}`; // Update score
+      }
+    }
+
+    // End the game
+    function endGame() {
+      clearInterval(gameInterval);
+      gameOver = true;
+      ctx.fillStyle = 'red';
+      ctx.font = '40px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Game Over! Press Space to Restart', canvas.width / 2, canvas.height / 2);
+    }
+  </script>
+</body>
+</html>
